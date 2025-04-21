@@ -1,0 +1,22 @@
+# Archivos y carpetas que no queremos subir a GitHub
+
+# Claves y configuraciones sensibles
+serviceAccountKey.json
+
+# Entornos virtuales de Python
+venv/
+.env
+
+# Archivos temporales y de sistema
+*.pyc
+__pycache__/
+
+# Configuración de entorno de IDEs (opcional)
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Archivos de ngrok (si usaras config)
+.ngrok2/
