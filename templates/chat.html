@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CharssChat - Chat en Vivo</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <header>
+            <h2>Bienvenido, {{ session['username'] }} en CharssChat</h2>
+            <button id="logout-btn" onclick="window.location.href='/'">Salir</button>
+        </header>
+
+        <div id="messages" class="messages">
+            {% for key, msg in messages.items() %}
+                <div class="message">
+                    <strong>{{ msg.username }}:</strong> {{ msg.message }}
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="input-container">
+            <input id="message" type="text" placeholder="Escribe un mensaje...">
+            <button id="emoji-btn">😊</button>
+            <button id="send-btn">Enviar</button>
+        </div>
+
+        <div id="emoji-picker" class="emoji-picker"></div>
+    </div>
+
+    <script src="{{ url_for('static', filename='emoji-picker.js') }}"></script>
+    <script>
+        const socket = io();
+
+        socket.on('receive_message', data => {
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            msgDiv.innerHTML = `<strong>${data.username}:</strong> ${data.message}`;
+            document.getElementById('messages').appendChild(msgDiv);
+        });
+
+        function sendMessage() {
+            const username = "{{ session['username'] }}";  // Nombre de usuario de la sesión
+            const message = document.getElementById('message').value;
+            if (!message.trim()) return;  // No enviar mensajes vacíos
+            socket.emit('send_message', { username, message });
+            document.getElementById('message').value = '';
+        }
+
+        document.getElementById("message").addEventListener("keypress", function(e) {
+            if (e.key === "Enter") sendMessage();
+        });
+
+        document.getElementById("send-btn").addEventListener("click", sendMessage);
+        document.getElementById("emoji-btn").addEventListener("click", toggleEmoji);
+    </script>
+</body>
+</html>
