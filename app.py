@@ -4,17 +4,19 @@ import firebase_admin
 from firebase_admin import credentials, auth, storage, db
 import os
 from werkzeug.utils import secure_filename
+import json
 
 # Inicializar app Flask
 app = Flask(__name__)
-app.secret_key = 'supersecretkey'
+app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')  # Usa una variable de entorno
 socketio = SocketIO(app)
 
-# Inicializar Firebase
-cred = credentials.Certificate("serviceAccountKey.json")
+# Inicializar Firebase usando las variables de entorno
+cred_json = os.getenv('FIREBASE_CREDENTIALS')  # Leer JSON de las variables de entorno
+cred = credentials.Certificate(json.loads(cred_json))
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://charsschat.firebaseio.com/',
-    'storageBucket': 'charsschat.appspot.com'
+    'databaseURL': os.getenv('FIREBASE_DB_URL'),
+    'storageBucket': os.getenv('FIREBASE_STORAGE_BUCKET')
 })
 bucket = storage.bucket()
 
