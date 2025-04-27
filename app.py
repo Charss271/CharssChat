@@ -4,19 +4,36 @@ import firebase_admin
 from firebase_admin import credentials, auth, storage, db
 import os
 from werkzeug.utils import secure_filename
-import json
+from dotenv import load_dotenv
+
+# Cargar variables de entorno desde el archivo .env
+load_dotenv()
 
 # Inicializar app Flask
 app = Flask(__name__)
-app.secret_key = os.getenv('SECRET_KEY', 'supersecretkey')  # Usa una variable de entorno
+app.secret_key = 'supersecretkey'
 socketio = SocketIO(app)
 
-# Inicializar Firebase usando las variables de entorno
-cred_json = os.getenv('FIREBASE_CREDENTIALS')  # Leer JSON de las variables de entorno
-cred = credentials.Certificate(json.loads(cred_json))
+# Obtener la clave privada de Firebase desde las variables de entorno
+private_key = os.getenv("FIREBASE_PRIVATE_KEY")
+
+# Inicializar Firebase con las credenciales
+cred = credentials.Certificate({
+    "type": "service_account",
+    "project_id": "charsschat",
+    "private_key_id": "d259cb17802d8a8d2b1abd4a12f0203e901eeb23",
+    "private_key": private_key,  # Usar la clave cargada desde la variable de entorno
+    "client_email": "firebase-adminsdk-fbsvc@charsschat.iam.gserviceaccount.com",
+    "client_id": "109002188473903551976",
+    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+    "token_uri": "https://oauth2.googleapis.com/token",
+    "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40charsschat.iam.gserviceaccount.com",
+    "universe_domain": "googleapis.com"
+})
 firebase_admin.initialize_app(cred, {
-    'databaseURL': os.getenv('FIREBASE_DB_URL'),
-    'storageBucket': os.getenv('FIREBASE_STORAGE_BUCKET')
+    'databaseURL': 'https://charsschat.firebaseio.com/',
+    'storageBucket': 'charsschat.appspot.com'
 })
 bucket = storage.bucket()
 
@@ -108,3 +125,4 @@ def upload():
 
 if __name__ == '__main__':
     socketio.run(app, host='0.0.0.0', port=5000)
+

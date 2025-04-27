@@ -3,9 +3,11 @@
 # Claves y configuraciones sensibles
 serviceAccountKey.json
 
+# Archivos de configuración de Firebase
+.env
+
 # Entornos virtuales de Python
 venv/
-.env
 
 # Archivos temporales y de sistema
 *.pyc
@@ -18,5 +20,5 @@ __pycache__/
 # Logs
 *.log
 
-# Archivos de ngrok (si usaras config)
+# Archivos de ngrok (si usas config)
 .ngrok2/
