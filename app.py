@@ -1,58 +1,108 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_socketio import SocketIO, emit
 import firebase_admin
-from firebase_admin import credentials, db
+from firebase_admin import credentials, auth, storage, db
 import os
+from werkzeug.utils import secure_filename
 
 # Inicializar app Flask
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.urandom(24)  # Clave secreta para la sesión
-app.config['SESSION_TYPE'] = 'filesystem'
+app.secret_key = 'supersecretkey'
+socketio = SocketIO(app)
 
-# Inicializar SocketIO con CORS habilitado
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
-
-# Configuración de Firebase
+# Inicializar Firebase
 cred = credentials.Certificate("serviceAccountKey.json")
 firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://charsschat-default-rtdb.firebaseio.com/'
+    'databaseURL': 'https://charsschat.firebaseio.com/',
+    'storageBucket': 'charsschat.appspot.com'
 })
+bucket = storage.bucket()
 
-# Ruta de login
+UPLOAD_FOLDER = 'uploads'
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# ----------------------
+# Rutas
+# ----------------------
+
 @app.route('/', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        username = request.form.get('usuario')
-        if username:
-            session['username'] = username  # Guardar el nombre del usuario en la sesión
-            return redirect(url_for('chat'))
+        email = request.form['email']
+        password = request.form['password']
+        try:
+            user = auth.get_user_by_email(email)
+            session['username'] = email.split('@')[0]
+            session['email'] = email
+            return redirect('/chat')
+        except:
+            return 'Usuario no encontrado o error al iniciar sesión'
     return render_template('login.html')
 
-# Ruta de chat
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        try:
+            auth.create_user(email=email, password=password)
+            return redirect('/')
+        except:
+            return 'Error al registrar usuario'
+    return render_template('register.html')
+
 @app.route('/chat')
 def chat():
     if 'username' not in session:
-        return redirect(url_for('login'))  # Si no está logueado, redirige al login
-    # Leer mensajes desde Firebase
-    ref = db.reference('/messages')
+        return redirect('/')
+    ref = db.reference('messages')
     messages = ref.get() or {}
-
-    if 'inicio' in messages:
-        del messages['inicio']  # Eliminar mensaje de inicio si existe
-
     return render_template('chat.html', messages=messages)
 
-# Evento SocketIO para mensajes
-@socketio.on('send_message')
-def handle_send_message_event(data):
-    ref = db.reference('/messages')
-    new_msg = ref.push()
-    new_msg.set({
-        'username': data['username'],
-        'message': data['message']
-    })
-    emit('receive_message', data, broadcast=True)
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
 
-# Iniciar servidor
+# ----------------------
+# SocketIO Eventos
+# ----------------------
+
+@socketio.on('send_message')
+def handle_message(data):
+    message = data['message']
+    username = data['username']
+    db.reference('messages').push({
+        'username': username,
+        'message': message
+    })
+    emit('receive_message', {'username': username, 'message': message}, broadcast=True)
+
+# Subida de archivos
+@app.route('/upload', methods=['POST'])
+def upload():
+    file = request.files['file']
+    if file:
+        filename = secure_filename(file.filename)
+        local_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(local_path)
+
+        blob = bucket.blob(f"uploads/{filename}")
+        blob.upload_from_filename(local_path)
+        blob.make_public()
+
+        # Enviar el link como mensaje
+        username = session.get('username', 'Anónimo')
+        db.reference('messages').push({
+            'username': username,
+            'message': f"<a href='{blob.public_url}' target='_blank'>{filename}</a>"
+        })
+        socketio.emit('receive_message', {'username': username, 'message': f"<a href='{blob.public_url}' target='_blank'>{filename}</a>"})
+        return 'Success'
+    return 'Failed'
+
+# ----------------------
+
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=5000)

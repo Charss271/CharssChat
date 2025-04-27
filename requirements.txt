@@ -1,6 +1,6 @@
-flask
-flask-socketio
+Flask
+Flask-SocketIO
 firebase-admin
-python-dotenv
-requests
-
+gunicorn
+eventlet
+Werkzeug
